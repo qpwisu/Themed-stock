@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.hany.stock_correlation">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_main"
+        android:roundIcon="@mipmap/ic_main_round"
+        android:supportsRtl="true"
+        android:label="관련주 검색"
+        android:theme="@style/Theme.Stock_collection">
+
+        <activity
+            android:name=".CompareActivity"
+            android:exported="false" />
+        <activity
+            android:name=".recycle.ContentRVAdapter"
+            android:exported="false"
+            tools:ignore="Instantiatable" />
+        <activity
+            android:name=".graph.GraphActivity"
+            android:exported="false" />
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
