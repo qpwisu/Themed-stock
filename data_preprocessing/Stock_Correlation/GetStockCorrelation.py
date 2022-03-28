@@ -12,6 +12,8 @@ from collections import Counter
 import json
 from datetime import datetime
 import pickle
+from itertools import islice
+import re
 
 class StockCollection():
 
@@ -129,7 +131,6 @@ class StockCollection():
             yDay = stockP.iloc[dayId - 1]
             tDay = stockP.iloc[dayId]
             viList = []
-
             for codeId in range(stockP.shape[1]):
                 yDayCPrice = yDay.iloc[codeId].split(",")[0]
                 tDayHPrice = tDay.iloc[codeId].split(",")[1]
@@ -137,9 +138,7 @@ class StockCollection():
                     # print(yDayCPrice, tDayHPrice,stockP.index[dayId],stockP.columns[codeId])
                     viList.append(stockP.columns[codeId])
                     viDic[stockP.index[dayId]] = viList
-
         permut = []
-
         for key in tqdm(viDic.keys()):
             p = list(itertools.permutations(viDic[key], 2))
             permut.extend(p)
@@ -148,7 +147,6 @@ class StockCollection():
 
     def get_highestCorrelation(self):
         pd.set_option('display.max_seq_items', None)
-
         print("start get_highestCorrelation")
         num =105
         stock1 = pd.read_csv("stockPrice.csv", dtype=str, index_col=0)
@@ -184,7 +182,6 @@ class StockCollection():
             tmp = list(map(list, tmp))
             tmp.sort(key=  lambda x:int(x[2]), reverse=True)
             tmp = tmp[0:50]
-
             corr = corr.astype('string')
             max_corr_list = self.max_corr(50, corr)
             for m in max_corr_list:
@@ -193,19 +190,16 @@ class StockCollection():
             hDic[c]= dic
             # fb.load_best_corr(c, dic)
         return hDic
-
      # corrAll 구하기
     def search_max_corr(self,code, corr):
         max_corr_index = corr.loc[code].sort_values(ascending=False).index.tolist()
         max_corr = corr.loc[code].sort_values(ascending=False).tolist()
         return [[max_corr_index[i], max_corr[i]] for i in range(len(max_corr))]
-
     def get_corrAll(self):
         print("start get_corrAll")
         stock = pd.read_csv("stockPrice.csv", dtype=str, index_col=0)
         dic = dict.fromkeys(stock.columns, dict.fromkeys([str(i) for i in range(1, len(stock.columns) + 1)], ""))
         countList = [30, 90, 180, 365,540]
-
         for c in tqdm(countList):
             corr = self.corr_stock(stock[-c-1:])
             # 상관계수가 본인과 본인 외에 1인 경우는 오류라 0으로 변환
@@ -225,11 +219,7 @@ class StockCollection():
                     else:
                         tmp[str(i + 1)] = tmp[str(i + 1)] + search[i][0] + ";" + search[i][1] + ";"
                 dic[code] = tmp
-
-
-
         return dic
-
     def vi_count(self,stockP):
         print("start vi_count")
         viDic = {}
@@ -241,7 +231,6 @@ class StockCollection():
             yDay = stockP.iloc[dayId - 1]
             tDay = stockP.iloc[dayId]
             viList = []
-
             for codeId in range(stockP.shape[1]):
                 yDayCPrice = yDay.iloc[codeId].split(",")[0]
                 tDayHPrice = tDay.iloc[codeId].split(",")[1]
@@ -249,10 +238,7 @@ class StockCollection():
                     # print(yDayCPrice, tDayHPrice,stockP.index[dayId],stockP.columns[codeId])
                     viList.append(stockP.columns[codeId])
                     viDic[stockP.index[dayId]] = viList
-
-
         permut = []
-
         for key in tqdm(viDic.keys()):
             p= list(itertools.product(viDic[key], repeat = 2))
             # p = list(itertools.permutations(viDic[key], 2))
@@ -266,12 +252,12 @@ class StockCollection():
         for key,value in (p.items()):
             df.loc[key[0], key[1]] += int(value)
         return  df
+
     def get_vi_count(self):
         print("start get_vi_count")
         vi = pd.read_csv("viPrice.csv", dtype=str, index_col=0)
         dic = dict.fromkeys(vi.columns, dict.fromkeys([str(i) for i in range(1, len(vi.columns) + 1)], ""))
         countList = [30, 90, 180, 365,540]
-
         for c in tqdm(countList):
             viCount = self.vi_count(vi[-c:])
             viCount = self.vi_count_df(viCount,vi[-c:].columns)
@@ -285,9 +271,6 @@ class StockCollection():
                     else:
                         tmp[str(i + 1)] = tmp[str(i + 1)] + search[i][0] + ";" + search[i][1] + ";"
                 dic[code] = tmp
-
-
-
         return dic
 
     def get_viAndCorr(self):
@@ -299,6 +282,115 @@ class StockCollection():
         with open('CA.pickle', 'wb') as fw:
             pickle.dump(CA, fw)
         return CA
+    def sectors_corrAll(self,dic1,dic2):
+        stock = pd.read_csv("stockPrice.csv", dtype=str, index_col=0)
+        dic = dict.fromkeys(stock.columns, dict.fromkeys([str(i) for i in range(1, 200)], ""))
+        countList = [30, 90, 180, 365,540]
+        for c in (countList):
+            stt= stock[-c-1:]
+            corr = self.corr_stock(stt)
+            # 상관계수가 본인과 본인 외에 1인 경우는 오류라 0으로 변환
+            for j in range(len(corr.index)):
+                corr.iloc[j, j] = 9999999999.0
+            corr = corr[:].replace(1, 0)
+            for j in range(len(corr.index)):
+                corr.iloc[j, j] = 1
+            # # 한 종목의 관계계수 높은 순서대로 검색
+            ccd = set(stt.columns) & set(dic2.keys())
+            for code in tqdm(ccd):
+                sect = dic2[code]
+                cd = list(set(dic1[sect]) & set(ccd))
+                tmp = dic[code].copy()
+                crr = corr.loc[cd,cd]
+                search = self.search_max_corr(code, crr)
+                for i in range(0, len(search)):
+                    search[i][1] = str(round(search[i][1], 5))
+                    if c == 540:
+                        tmp[str(i + 1)] = tmp[str(i + 1)] + search[i][0] + ";" + search[i][1]
+                    else:
+                        tmp[str(i + 1)] = tmp[str(i + 1)] + search[i][0] + ";" + search[i][1] + ";"
+                dic[code] = tmp
+        for k in dic.keys():
+            for k2 in dic[k].keys():
+                # print(k2)
+                # numbers = str(re.sub(r'[^0-9]', '', k2))
+                # print(numbers)
+                if dic[k][k2]=="":
+                    numbers = str(re.sub(r'[^0-9]', '', k2))
+                    dic[k]=dict(islice(dic[k].items(), int(numbers)-1))
+                    break
+        return dic
+
+    def sectors_vi_count(self,dic1,dic2):
+        vi = pd.read_csv("viPrice.csv", dtype=str, index_col=0)
+        dic = dict.fromkeys(vi.columns, dict.fromkeys([str(i) for i in range(1, 200)], ""))
+        countList = [30, 90, 180, 365, 540]
+        for c in tqdm(countList):
+            viCount = self.vi_count(vi[-c:])
+            viCount = self.vi_count_df(viCount, vi[-c:].columns)
+            ccd = set(viCount.columns) & set(dic2.keys())
+            for code in ccd:
+                sect = dic2[code]
+                cd = list(set(dic1[sect]) & set(ccd))
+                vc = viCount.loc[cd, cd]
+                tmp = dic[code].copy()
+                search = self.search_max_corr(code, vc)
+                for i in range(0, len(search)):
+                    search[i][1] = str(search[i][1])
+                    if c == 540:
+                        tmp[str(i + 1)] = tmp[str(i + 1)] + search[i][0] + ";" + search[i][1]
+                    else:
+                        tmp[str(i + 1)] = tmp[str(i + 1)] + search[i][0] + ";" + search[i][1] + ";"
+                dic[code] = tmp
+        for k in dic.keys():
+            for k2 in dic[k].keys():
+                # print(k2)
+                # numbers = str(re.sub(r'[^0-9]', '', k2))
+                # print(numbers)
+                if dic[k][k2]=="":
+                    numbers = str(re.sub(r'[^0-9]', '', k2))
+                    dic[k]=dict(islice(dic[k].items(), int(numbers)-1))
+                    break
+        return dic
+
+    def get_sectors_viAndCorr(self,dic1,dic2):
+        print("start get_sectors_viAndCorr")
+        CA=self.sectors_corrAll(dic1,dic2)
+        VC=self.sectors_vi_count(dic1,dic2)
+        for i in CA.keys():
+            for j in CA[i].keys():
+                CA[i][j] = CA[i][j] + ";" + VC[i][j]
+        with open('CA.pickle', 'wb') as fw:
+            pickle.dump(CA, fw)
+        return CA
+
+    def get_sectors(self):
+        def get_stocks( market=None):
+            market_type = ''
+            if market == 'kospi':
+                market_type = '&marketType=stockMkt'
+            elif market == 'kosdaq':
+                market_type = '&marketType=kosdaqMkt'
+            elif market == 'konex':
+                market_type = '&marketType=konexMkt'
+            url = 'http://kind.krx.co.kr/corpgeneral/corpList.do?currentPageSize=5000&pageIndex=1&method=download&searchType=13{market_type}'.format(
+                market_type=market_type)
+            list_df_stocks = pd.read_html(url, header=0, converters={'종목코드': lambda x: str(x)})
+            df_stocks = list_df_stocks[0]
+            return df_stocks
+        kp = get_stocks("kospi")
+        kd = get_stocks("kosdaq")
+        df_stock = pd.concat([kp, kd])[["회사명", "업종"]]
+        d = df_stock.groupby(['업종']).value_counts()
+        d2 = df_stock.groupby(['업종']).count()
+        sectors = d2.index
+        dic = {}
+        for i in sectors:
+            dic[i] = list(d[i].index)
+        df_stock.set_index("회사명", inplace=True)
+        dic2 = df_stock.to_dict()["업종"]
+        return dic, dic2
+
     #그래프 그리는거
     # def max_corr_graph(self,num,stock,max_corr_list):
     #     test = max_corr_list[0:num]

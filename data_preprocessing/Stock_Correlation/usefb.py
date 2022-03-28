@@ -65,4 +65,37 @@ class Fb:
             dr = doc_ref.document(u'' + str(c))
             dr.set(hc[c])
 
+    def load_sectors(self,dic1,dic2):
+        self.db = firestore.client()
+        print("start load_sectors")
+        doc_ref = self.db.collection(u'sectors')
+        se = doc_ref.document(u'sectors')
+        st = doc_ref.document(u'stock')
+        se.set(dic1)
+        st.set(dic2)
+
+    def load_sectorsCorrAll(self,dic):
+        self.db = firestore.client()
+        print("start load_sectorsCorrAll")
+        doc_ref = self.db.collection(u'sectorsCorrAll')
+
+        one = dict(islice(dic.items(), 0, 800))
+        two = dict(islice(dic.items(), 800, 1600))
+        three = dict(islice(dic.items(), 1600, None))
+        for code in tqdm(one.keys()):
+            dr = doc_ref.document(u'' + str(code))
+            dr.set(dic[code])
+
+        self.db = firestore.client()
+        doc_ref = self.db.collection(u'sectorsCorrAll')
+        for code in tqdm(two.keys()):
+            dr = doc_ref.document(u'' + str(code))
+            dr.set(dic[code])
+
+        self.db = firestore.client()
+        doc_ref = self.db.collection(u'sectorsCorrAll')
+        for code in tqdm(three.keys()):
+            dr = doc_ref.document(u'' + str(code))
+            dr.set(dic[code])
+
 
